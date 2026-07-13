@@ -1,15 +1,16 @@
 # order-entry-bot
 
-伯俊 POS 订单自动录入工具方案。当前阶段只沉淀需求、流程、验证方法和后续实现计划，暂不实现代码。
+线下门店订单自动录入伯俊 POS 客户端
 
 ## 目标
 
-给定一份类似 `订单.xlsx` 的订单明细表，在 Windows 电脑上自动打开并操作伯俊 POS 客户端，逐单完成商品条码录入、订单实收价修改、收银确认和后续结果校验。
+给定一份类似 `docs/orders.xlsx` 的订单明细表，在 Windows 电脑上自动打开并操作`伯俊 POS 客户端`，逐单完成商品条码录入、订单实收价修改、收银确认和后续结果校验。
 
 最终交付物倾向于：
 
 - 一个 Windows 可运行的小工具或 `.exe`
-- 支持导入 Excel
+- 支持查询导入订单让其自动录入的记录
+- 支持导入外部的订单 Excel
 - 支持开始、暂停、继续、停止
 - 支持记录每个订单的成功/失败日志
 - 支持录单后打开浏览器查询录单结果
@@ -17,14 +18,14 @@
 
 ## 样例 Excel 结构
 
-当前样例文件：`订单.xlsx`
+当前样例文件：`docs/orders.xlsx`
 
 字段：
 
 | 字段 | 说明 |
 | --- | --- |
 | 订单号 | 每个订单第一行有值，后续商品行为空时继承上一行订单号 |
-| 订单实收 | 每个订单第一行有值，作为 F11 后修改的订单实收价 |
+| 订单实收 | 每个订单第一行有值，作为 `总额折扣` 弹窗中 `特价` 的订单总金额 |
 | 商品总数 | 当前仅用于校验，不参与 POS 输入 |
 | 支付方式 | 暂不使用，POS 走默认支付方式 |
 | 条码 | 需要输入到 POS 条码输入区域 |
@@ -42,14 +43,14 @@
 
 首次启动：
 
-1. 打开桌面上的伯俊 POS 系统。
+1. 打开桌面上的伯俊 POS 客户端。
 2. 用户名和密码已经保存或已填写。
 3. 点击登录，进入主界面。
 4. 点击 `收银台`，进入收银台首页。
 
 每个订单：
 
-1. 在收银台界面找到日期控件。
+1. 在收银台界面找到`单据日期`字样后面的日期，日期默认展示的当前时间的日期。
 2. 日期控件是下拉选择框，将日期选择为订单号前 8 位对应的日期。
 3. 逐个录入该订单下的商品：
    - 复制商品条码到条码输入区域
@@ -57,14 +58,14 @@
    - 如果该商品条码对应的 Excel `数量` 为 `1`，无需修改数量，因为 POS 默认数量就是 `1`
    - 如果该商品条码对应的 Excel `数量` 大于 `1`，找到该商品条码记录中的数量输入框，修改为 Excel 的 `数量`
    - 修改数量后按回车，数量即更新成功
-4. 订单内所有商品录入完成后，在商品列表头部点击 `全选` radio。该 radio 已知无法通过快捷键或控件定位触发，后续实现需要使用坐标或图片识别。
-5. 按 `F11` 弹出修改订单总价窗口。
-6. 在改价弹窗中点选 `总额改价`。
-7. 输入 Excel 的 `订单实收` 作为订单总金额。
-8. 回车关闭改价框。
-9. 点击 `去收银`。
+4. 订单内所有商品录入完成后，在商品列表表头行最前面勾选，选中所有商品；
+5. 按 `F9`或者找到底部`总额折扣`点击，弹出修改订单总价窗口。
+6. 在修改总额折扣弹窗中点选 `特价`。
+7. 输入 Excel 的 `订单实收` 作为订单总金额。订单的实收金额支持为`0`的情况
+8. 修改完订单总额后，点击`确定`闭改价框。
+9. 点击右下角的 `收银` 或者按下`F5`。
 10. 在弹出的会员输入框中点击 `取消`。
-11. 按第一次回车，生成订单。
+11. 在出现的收银界面，按第一次回车，生成订单。如果订单的时候金额是0的话，此时入单已完成，没有后续的操作了。
 12. 等待约 `0.5s`。
 13. 按第二次回车，调取小票打印。
 14. 第二次回车后会弹出 Windows 系统打印框，需要手动关闭。
@@ -98,78 +99,8 @@
 - `win32`：适合传统 Win32、MFC、VB、部分老式客户端
 - `uia`：适合 WPF、WinForms、Qt、现代桌面客户端
 
-伯俊 POS 的具体实现方式未知，目前没有找到公开资料明确说明它是否支持 UI Automation。因此需要在实际 Windows 机器上验证控件能否被识别。
+伯俊 POS 支持 UI Automation。优先使用控件定位，稳定性更好。
 
-如果控件可识别，优先使用控件定位，稳定性更好。
-
-如果控件不可识别，则使用：
-
-- 快捷键
-- 固定窗口位置
-- 坐标点击
-- 图片识别
-- 剪贴板输入
-
-作为 fallback。
-
-已知需要 fallback 的位置：
-
-- 商品列表头部 `全选` radio 无法通过快捷键或控件定位触发，应使用坐标点击或图片识别。
-- 第二次回车后弹出的 Windows 系统打印框需要人工关闭，第一版不自动关闭。
-
-## POS 控件识别验证方法
-
-### 方法一：使用 Accessibility Insights for Windows
-
-微软现在更推荐使用 Accessibility Insights for Windows 查看 UI Automation 信息。
-
-下载地址：
-
-https://accessibilityinsights.io/docs/windows/getstarted/inspect/
-
-验证步骤：
-
-1. 在 Windows 机器上打开伯俊 POS。
-2. 打开 Accessibility Insights for Windows。
-3. 选择 Inspect 功能。
-4. 鼠标悬停或键盘聚焦到以下控件：
-   - 登录按钮
-   - 收银台按钮
-   - 日期输入/选择控件
-   - 条码输入框
-   - 数量输入框
-   - 商品列表头部全选 radio，已知可能无法识别，主要用于确认其不可识别状态和坐标位置
-   - F11 修改总价弹窗中的金额输入框
-   - F11 修改总价弹窗中的 `总额改价` 选项
-   - 去收银按钮
-   - 会员输入弹窗的取消按钮
-   - Windows 系统打印框
-5. 观察工具中是否能看到：
-   - `Name`
-   - `AutomationId`
-   - `ControlType`
-   - `ClassName`
-   - 支持的 Patterns，例如 `InvokePattern`、`ValuePattern`、`SelectionItemPattern`
-
-如果这些信息比较完整，就可以优先走 UI Automation。
-
-### 方法二：使用 Windows SDK Inspect.exe
-
-Inspect.exe 是 Windows SDK 附带的工具，可以查看 Microsoft UI Automation 和 MSAA 信息。
-
-微软文档：
-
-https://learn.microsoft.com/windows/win32/winauto/inspect-objects
-
-常见路径类似：
-
-```text
-C:\Program Files (x86)\Windows Kits\10\bin\<版本号>\x64\Inspect.exe
-```
-
-验证标准和 Accessibility Insights 类似，重点看 POS 控件是否有稳定的 `AutomationId`、`Name`、`ClassName` 和可操作 Pattern。
-
-## 自动化稳定性策略
 
 ### 输入方式
 
@@ -187,9 +118,9 @@ C:\Program Files (x86)\Windows Kits\10\bin\<版本号>\x64\Inspect.exe
 
 ### 改价方式
 
-订单内所有商品录入完成后，需要先点击商品列表头部的 `全选` radio，再按 `F11` 进入改价弹窗。
+订单内所有商品录入完成后，需要先点击商品列表头部的全选勾选框，再按 `F9` 或点击底部 `总额折扣` 进入改价弹窗。
 
-改价弹窗中有三个选项，当前业务固定选择 `总额改价`，随后输入 Excel 的 `订单实收` 作为订单总金额，并按回车关闭改价框。
+改价弹窗中有三个选项，当前业务固定选择 `特价`，随后输入 Excel 的 `订单实收` 作为订单总金额，并点击 `确定` 关闭改价框。
 
 ### 打印框处理
 
@@ -208,7 +139,7 @@ C:\Program Files (x86)\Windows Kits\10\bin\<版本号>\x64\Inspect.exe
 - 当前是否在收银台页面
 - 条码输入框是否可输入
 - 数量大于 `1` 时，该商品条码记录中的数量输入框是否可定位
-- F11 改价弹窗是否出现
+- 总额折扣改价弹窗是否出现
 - 会员弹窗是否出现
 
 ### 延迟和等待
@@ -326,6 +257,140 @@ order_entry_bot/
   - 正式录入
   - dry-run，仅解析 Excel 和展示待录订单，不操作 POS
 
+## 当前实现
+
+当前仓库已经包含第一版可运行系统：
+
+```text
+order_entry_bot/
+  app.py                  # Tkinter 桌面 UI
+  cli.py                  # 命令行入口
+  excel_reader.py          # Excel 读取和校验
+  models.py                # Order / OrderItem / OrderResult
+  pos_driver/
+    base.py                # POS 操作接口
+    dry_run.py             # 本地 dry-run 驱动
+    pywinauto_driver.py    # Windows pywinauto 驱动
+  workflow.py              # 订单录入主流程
+  logger.py                # 日志
+  result_writer.py         # 结果 Excel
+  browser_verify.py        # 浏览器校验入口
+  screenshots.py           # 失败截图
+tools/inspect_pos.py       # Windows POS 控件树探测工具
+scripts/build_windows.ps1  # Windows 打包脚本
+run_app.py                 # PyInstaller GUI 入口
+```
+
+`order_entry_bot` 是 Python 包目录，主要业务代码都放在这里。
+
+macOS 上可以完成：
+
+- 读取和校验 Excel
+- 预览订单
+- dry-run 跑完整工作流
+- 生成日志和结果表
+- 开发和验证非 Windows 依赖的业务逻辑
+
+Windows 上继续完成：
+
+- 真实连接伯俊 POS
+- 校准 UI Automation 控件定位
+- 校准必要的坐标 fallback
+- 打包 `.exe`
+- 联调浏览器查询结果
+
+## 本地运行
+
+建议先创建虚拟环境：
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Windows PowerShell：
+
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+```
+
+预览订单：
+
+```bash
+python -m order_entry_bot.cli preview docs/orders.xlsx
+```
+
+dry-run 跑完整流程，不操作 POS：
+
+```bash
+python -m order_entry_bot.cli run docs/orders.xlsx --dry-run --output-dir outputs
+```
+
+启动桌面 UI：
+
+```bash
+python run_app.py
+```
+
+生成默认配置：
+
+```bash
+python -m order_entry_bot.cli save-config config/local.json
+```
+
+## Windows POS 探测
+
+在 Windows 电脑打开伯俊 POS 后，运行：
+
+```powershell
+python tools/inspect_pos.py --backend uia --output outputs/pos-control-tree-uia.txt
+python tools/inspect_pos.py --backend win32 --output outputs/pos-control-tree-win32.txt
+```
+
+探测文件用于确认这些控件是否能通过 UI Automation 定位：
+
+- 登录按钮
+- 收银台入口
+- 单据日期
+- 商品搜索输入框
+- 商品列表中的条码行和数量输入框
+- 商品列表表头全选
+- `总额折扣` / `特价` / `确定`
+- `收银` / 会员弹窗 `取消`
+
+如果某些控件无法稳定定位，修改配置文件中的 `pos.points` 坐标。默认坐标基于 `docs/` 下 2880x1800 录屏，程序会按 POS 窗口大小做比例缩放。
+
+## Windows 打包
+
+在 Windows PowerShell 中运行：
+
+```powershell
+.\scripts\build_windows.ps1
+```
+
+打包产物默认在：
+
+```text
+dist/OrderEntryBot/
+```
+
+第一次打包后，需要在目标 Windows 机器上用测试订单完整验证：
+
+- Excel 解析正确
+- POS 启动和登录正确
+- 日期选择正确
+- 条码录入正确
+- 数量大于 `1` 时能定位并修改数量
+- 全选商品成功
+- `总额折扣` 选择 `特价` 并改价成功
+- `F5` 收银和取消会员弹窗成功
+- 非零金额订单触发打印框
+- `0` 元订单不会触发打印后续步骤
+- 失败时生成日志、结果表和截图
+
 ## 后续实现阶段
 
 ### 阶段一：Excel 解析和校验
@@ -358,7 +423,7 @@ order_entry_bot/
 - 日期选择正确
 - 条码和数量录入正确
 - 商品列表头部 `全选` radio 通过坐标或图片识别点击成功
-- F11 弹窗中选择 `总额改价` 并改价成功
+- 总额折扣弹窗中选择 `特价` 并改价成功
 - 去收银成功
 - 会员弹窗取消成功
 - 第一次回车生成订单
@@ -399,8 +464,8 @@ order_entry_bot/
 - 商品数量大于 `1` 时，需要找到该商品条码记录中的数量输入框，修改数量并回车更新。
 - 改订单总价前必须先选中所有商品。
 - 商品列表头部有 `全选` radio，但无法通过快捷键或控件定位触发，需使用坐标或图片识别。
-- 按 `F11` 后弹出的改价框内有三个选项，固定点选 `总额改价`。
-- 输入订单总金额后，按回车关闭改价框。
+- 按 `F9` 或点击 `总额折扣` 后弹出的改价框内有三个选项，固定点选 `特价`。
+- 输入订单总金额后，点击 `确定` 关闭改价框。
 - 日期控件是下拉选择框，选择与订单日期相同的日期即可。
 - 录单后的第一次回车用于生成订单。
 - 录单后的第二次回车用于调取小票打印。

@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "order-entry-bot"
+version = "0.1.0"
+description = "Windows automation tool for entering offline orders into Bojun POS."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "openpyxl>=3.1.2",
+  "pillow>=10.0.0",
+  "mss>=9.0.1",
+  "pyperclip>=1.8.2",
+]
+
+[project.optional-dependencies]
+windows = [
+  "pywinauto>=0.6.8",
+  "pywin32>=306",
+]
+dev = [
+  "pytest>=8.0.0",
+]
+
+[project.scripts]
+order-entry-bot = "order_entry_bot.cli:main"
+order-entry-bot-ui = "order_entry_bot.app:main"
+
+[tool.setuptools.packages.find]
+include = ["order_entry_bot*"]
